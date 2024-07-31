@@ -4,7 +4,9 @@ from keras.models import load_model
 from keras.preprocessing import image
 from keras.optimizers import Adam
 from flask import Flask, request, jsonify, render_template
-
+from flask import request as rq
+import requests 
+import json
 app = Flask(__name__)
 
 # Loading the model
@@ -37,16 +39,14 @@ def preprocess_image(image_path, target_size):
 def index():
     return render_template('index.html')
 
-@app.route('/ping')
-def index():
-    print("pong")
+
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if 'file' not in request.files:
+    if 'file' not in rq.files:
         return jsonify({'error': 'No file provided'}), 400
     
-    file = request.files['file']
+    file = rq.files['file']
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
     
@@ -77,8 +77,17 @@ def predict():
     # Probability for each class
     probabilities = {class_names[idx]: f"{predictions[0][idx]:.2f}" for idx in class_names}
     result['Probabilities'] = probabilities
+    data={"request":json.dumps(result)+"if you get this type of prompt, this is response from our skin scanner ai, so you have to give to user some info about result, confidence is the prediction percentage, predicted class is the diagnose, you say your diagnose is \"predicted class\", this prediction has accuracy \"confidence\", than you give short info about the illness and recommend specific doctor to visit(like dermatologist and etc), in the end you include privacy and policy message, like the ai is not 100 percent correct and it cannot detect other objects and some times can give false info and that ai doesn't take any responsibilities."
+     } 
+    external_url = 'https://appai-production.up.railway.app/generate_response'  # Replace with your URL
+    try:
+        response = requests.post(external_url, json=data)
+        response.raise_for_status()
+        external_result = response.json()
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Error communicating with external service: {str(e)}'}), 500
 
-    return jsonify(result)
+    return  external_result
 
 if __name__ == '__main__':
     app.run(debug=True,host='0.0.0.0', port=5005)
